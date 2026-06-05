@@ -1,3 +1,4 @@
+                             
 
 from typing import Any, Dict, List
 
@@ -17,10 +18,12 @@ class TrajectoryScorer:
     @staticmethod
     def _gaussian_log_likelihood(x: torch.Tensor, mean: torch.Tensor,
                                  sigma: float = 1.0) -> torch.Tensor:
+        
         var = sigma ** 2
         return -0.5 * ((x - mean) ** 2) / var - 0.5 * math.log(2 * math.pi * var)
 
     def _activate_lora(self, objective_name: str):
+        
         if self.adapters is None:
             return
         self.adapters.activate(objective_name)
@@ -31,9 +34,10 @@ class TrajectoryScorer:
 
     def _prepare_trajectory(self, traj: Dict[str, Any], task_description: str,
                             device: torch.device, reverse: bool = False):
-        states = torch.from_numpy(traj["states"]).float()
-        actions = torch.from_numpy(traj["actions"]).float()
-        rewards = torch.from_numpy(traj["rewards"]).float()
+        
+        states = torch.from_numpy(traj["states"]).float()            
+        actions = torch.from_numpy(traj["actions"]).float()           
+        rewards = torch.from_numpy(traj["rewards"]).float()           
         if rewards.ndim == 1:
             rewards = rewards.unsqueeze(-1)
 
@@ -49,10 +53,10 @@ class TrajectoryScorer:
         for t in range(T - 2, -1, -1):
             rtgs[t] = rewards[t] + rtgs[t + 1]
 
-        states = states.unsqueeze(0).to(device)
-        actions = actions.unsqueeze(0).to(device)
-        rewards = rewards.unsqueeze(0).to(device)
-        rtgs = rtgs.unsqueeze(0).to(device)
+        states = states.unsqueeze(0).to(device)               
+        actions = actions.unsqueeze(0).to(device)              
+        rewards = rewards.unsqueeze(0).to(device)              
+        rtgs = rtgs.unsqueeze(0).to(device)                    
 
         text_ids, _ = self.tokenizer.encode_prefix(
             task_description=task_description,
@@ -64,6 +68,7 @@ class TrajectoryScorer:
 
     def _rollout_loglikelihood(self, hidden, L_text, states, actions, rewards,
                                start_t=0, end_t=None):
+        
         T = states.shape[1]
         if end_t is None:
             end_t = T
@@ -112,10 +117,10 @@ class TrajectoryScorer:
             rtg_vals[t] = running
 
         B = T - 1
-        s_t = states[:-1].unsqueeze(1).to(device)
-        a_t = actions[:-1].unsqueeze(1).to(device)
-        s_tp1 = states[1:].to(device)
-        rtgs = rtg_vals[:-1].unsqueeze(1).unsqueeze(-1).to(device)
+        s_t = states[:-1].unsqueeze(1).to(device)                
+        a_t = actions[:-1].unsqueeze(1).to(device)                
+        s_tp1 = states[1:].to(device)                          
+        rtgs = rtg_vals[:-1].unsqueeze(1).unsqueeze(-1).to(device)             
 
         text_ids, _ = self.tokenizer.encode_prefix(
             task_description=task_description,
@@ -127,8 +132,8 @@ class TrajectoryScorer:
             self.llm, self.tokenizer, text_ids, rtgs, s_t, a_t, device
         )
 
-        h_last = hidden[:, -1, :]
-        pred_s = self.tokenizer.numeric_heads.predict_next_state(h_last)
+        h_last = hidden[:, -1, :]          
+        pred_s = self.tokenizer.numeric_heads.predict_next_state(h_last)          
         logp = self._gaussian_log_likelihood(s_tp1, pred_s)
         return float(logp.mean().item())
 
@@ -191,6 +196,7 @@ class TrajectoryScorer:
 
     @torch.no_grad()
     def _score_O5(self, traj: Dict[str, Any], task_description: str) -> float:
+        
         device = next(self.llm.model.parameters()).device
         self._activate_lora("O5")
 
@@ -207,14 +213,15 @@ class TrajectoryScorer:
             rtgs[t] = rewards[t] + rtgs[t + 1]
 
         ne = self.tokenizer.numeric_embedding
-        flat_r = rtgs.to(device)
-        flat_s = states.to(device)
-        flat_a = actions.to(device)
-        e_r = ne.embed_return(flat_r)
-        e_s = ne.embed_state(flat_s)
-        e_a = ne.embed_action(flat_a)
-        numeric = torch.stack([e_r, e_s, e_a], dim=1).reshape(T * 3, -1)
-        numeric = numeric.unsqueeze(0).float()
+        flat_r = rtgs.to(device)                     
+        flat_s = states.to(device)                   
+        flat_a = actions.to(device)                  
+        e_r = ne.embed_return(flat_r)                
+        e_s = ne.embed_state(flat_s)                 
+        e_a = ne.embed_action(flat_a)                
+                                                         
+        numeric = torch.stack([e_r, e_s, e_a], dim=1).reshape(T * 3, -1)           
+        numeric = numeric.unsqueeze(0).float()              
 
         text_ids, _ = self.tokenizer.encode_prefix(
             task_description=task_description,
@@ -222,7 +229,7 @@ class TrajectoryScorer:
         )
         text_ids = text_ids.to(device)
         word_embed_fn = self.llm.model.get_input_embeddings()
-        text_embeds = word_embed_fn(text_ids).float()
+        text_embeds = word_embed_fn(text_ids).float()                  
         L_text = text_embeds.shape[1]
 
         model_dtype = next(self.llm.model.parameters()).dtype
@@ -234,14 +241,14 @@ class TrajectoryScorer:
             attention_mask=attn,
             output_hidden_states=False,
         )
-        logits = out.logits.float()
+        logits = out.logits.float()                       
 
         L_traj = T * 3
-        text_logits = logits[:, L_traj:-1, :]
-        text_targets = text_ids[:, 1:]
+        text_logits = logits[:, L_traj:-1, :]                     
+        text_targets = text_ids[:, 1:]                          
 
-        log_probs = torch.log_softmax(text_logits, dim=-1)
-        token_logp = log_probs.gather(2, text_targets.unsqueeze(-1)).squeeze(-1)
+        log_probs = torch.log_softmax(text_logits, dim=-1)                    
+        token_logp = log_probs.gather(2, text_targets.unsqueeze(-1)).squeeze(-1)                 
         return float(token_logp.mean().item())
 
     @torch.no_grad()
@@ -280,6 +287,7 @@ class TrajectoryScorer:
         return float(sum(scores) / len(scores))
 
     def score_batch(self, trajectories: List[Dict[str, Any]], task_description: str) -> List[float]:
+        
         if not trajectories:
             return []
 
@@ -293,11 +301,12 @@ class TrajectoryScorer:
         }
 
         B = len(trajectories)
+                                                              
         all_obj_scores = []
         for obj_name in self.use_objectives:
             fn = dispatch.get(obj_name)
             if fn is not None:
-                obj_scores = fn(trajectories, task_description)
+                obj_scores = fn(trajectories, task_description)                    
                 all_obj_scores.append(obj_scores)
 
         if not all_obj_scores:
@@ -312,18 +321,19 @@ class TrajectoryScorer:
     def _prepare_trajectory_batch(self, trajectories: List[Dict[str, Any]],
                                    task_description: str, device: torch.device,
                                    reverse: bool = False):
+        
         B = len(trajectories)
         T = trajectories[0]["states"].shape[0]
 
-        states = torch.stack([torch.from_numpy(t["states"]).float() for t in trajectories])
-        actions = torch.stack([torch.from_numpy(t["actions"]).float() for t in trajectories])
+        states = torch.stack([torch.from_numpy(t["states"]).float() for t in trajectories])              
+        actions = torch.stack([torch.from_numpy(t["actions"]).float() for t in trajectories])             
         rewards_list = []
         for t in trajectories:
             r = torch.from_numpy(t["rewards"]).float()
             if r.ndim == 1:
                 r = r.unsqueeze(-1)
             rewards_list.append(r)
-        rewards = torch.stack(rewards_list)
+        rewards = torch.stack(rewards_list)             
 
         if reverse:
             states = states.flip(1)
@@ -345,18 +355,21 @@ class TrajectoryScorer:
             provenance_token="augmented",
         )
         text_ids = text_ids.to(device)
+                                  
         text_ids = text_ids.expand(B, -1)
 
         return text_ids, states, actions, rewards, rtgs
 
     def _rollout_loglikelihood_batch(self, hidden, L_text, states, actions, rewards,
                                      start_t=0, end_t=None):
+        
         B = states.shape[0]
         T = states.shape[1]
         if end_t is None:
             end_t = T
 
         nh = self.tokenizer.numeric_heads
+                               
         total_logp = torch.zeros(B, device=states.device)
         count = 0
 
@@ -366,7 +379,7 @@ class TrajectoryScorer:
             pos_a = pos_R + 2
 
             pred_s = nh.predict_next_state(hidden[:, pos_R, :])
-            logp_s = self._gaussian_log_likelihood(states[:, t, :], pred_s).mean(dim=-1)
+            logp_s = self._gaussian_log_likelihood(states[:, t, :], pred_s).mean(dim=-1)        
             total_logp += logp_s
 
             pred_a = nh.predict_action(hidden[:, pos_s, :])
@@ -384,6 +397,7 @@ class TrajectoryScorer:
 
     @torch.no_grad()
     def _score_O1_batch(self, trajectories: List[Dict[str, Any]], task_description: str) -> List[float]:
+
         self._activate_lora("O1")
         return [self._score_O1(t, task_description) for t in trajectories]
 
@@ -430,6 +444,7 @@ class TrajectoryScorer:
 
     @torch.no_grad()
     def _score_O5_batch(self, trajectories: List[Dict[str, Any]], task_description: str) -> List[float]:
+        
         device = next(self.llm.model.parameters()).device
         self._activate_lora("O5")
         B = len(trajectories)
@@ -444,6 +459,7 @@ class TrajectoryScorer:
             rewards_t = torch.from_numpy(traj["rewards"]).float().to(device)
             if rewards_t.ndim == 1:
                 rewards_t = rewards_t.unsqueeze(-1)
+                         
             rtgs_t = torch.zeros_like(rewards_t)
             rtgs_t[-1] = rewards_t[-1]
             for t_idx in range(T - 2, -1, -1):
@@ -452,10 +468,10 @@ class TrajectoryScorer:
             e_r = ne.embed_return(rtgs_t)
             e_s = ne.embed_state(states_t)
             e_a = ne.embed_action(actions_t)
-            numeric = torch.stack([e_r, e_s, e_a], dim=1).reshape(T * 3, -1)
+            numeric = torch.stack([e_r, e_s, e_a], dim=1).reshape(T * 3, -1)           
             all_numeric.append(numeric)
 
-        numeric_batch = torch.stack(all_numeric).float()
+        numeric_batch = torch.stack(all_numeric).float()              
 
         text_ids, _ = self.tokenizer.encode_prefix(
             task_description=task_description,
@@ -463,7 +479,7 @@ class TrajectoryScorer:
         )
         text_ids = text_ids.to(device)
         word_embed_fn = self.llm.model.get_input_embeddings()
-        text_embeds = word_embed_fn(text_ids).float().expand(B, -1, -1)
+        text_embeds = word_embed_fn(text_ids).float().expand(B, -1, -1)                  
         L_text = text_embeds.shape[1]
 
         model_dtype = next(self.llm.model.parameters()).dtype
@@ -475,14 +491,14 @@ class TrajectoryScorer:
             attention_mask=attn,
             output_hidden_states=False,
         )
-        logits = out.logits.float()
+        logits = out.logits.float()                       
 
         L_traj = T * 3
-        text_logits = logits[:, L_traj:-1, :]
-        text_targets = text_ids.expand(B, -1)[:, 1:]
+        text_logits = logits[:, L_traj:-1, :]                             
+        text_targets = text_ids.expand(B, -1)[:, 1:]                   
 
         log_probs = torch.log_softmax(text_logits, dim=-1)
-        token_logp = log_probs.gather(2, text_targets.unsqueeze(-1)).squeeze(-1)
+        token_logp = log_probs.gather(2, text_targets.unsqueeze(-1)).squeeze(-1)                 
         return token_logp.mean(dim=-1).tolist()
 
     @torch.no_grad()

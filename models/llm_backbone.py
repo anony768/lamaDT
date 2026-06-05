@@ -1,4 +1,5 @@
 
+
 from typing import Any, Dict, Optional
 
 import torch
@@ -8,7 +9,7 @@ class LLMBackbone:
 
     def __init__(
         self,
-        model_name: str = "",
+        model_name: str = "meta-llama/Llama-3.2-1B",
         device: Optional[str] = None,
         dtype: torch.dtype = torch.float16,
     ) -> None:
@@ -16,6 +17,7 @@ class LLMBackbone:
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         if self.tokenizer.pad_token is None:
+                                               
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         self.model = AutoModelForCausalLM.from_pretrained(
@@ -42,6 +44,7 @@ class LLMBackbone:
         output_hidden_states: bool = True,
         **kwargs: Dict[str, Any],
     ):
+        
         return self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -49,3 +52,4 @@ class LLMBackbone:
             output_hidden_states=output_hidden_states,
             **kwargs,
         )
+

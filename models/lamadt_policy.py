@@ -1,4 +1,5 @@
 
+
 from typing import Any, Dict
 
 import numpy as np
@@ -6,6 +7,7 @@ import torch
 
 class LaMADTPolicy:
     def __init__(self, llm, policy_lora, tokenizer):
+        
         self.llm = llm
         self.policy_lora = policy_lora
         self.tokenizer = tokenizer
@@ -17,6 +19,7 @@ class LaMADTPolicy:
         task_description: str,
         provenance_token: str,
     ) -> np.ndarray:
+        
         device = next(self.llm.model.parameters()).device
         model_dtype = next(self.llm.model.parameters()).dtype
 
@@ -31,13 +34,13 @@ class LaMADTPolicy:
             task_description=task_description,
             provenance_token=provenance_token,
         )
-        text_ids = text_ids.to(device)
+        text_ids = text_ids.to(device)               
 
         states = torch.from_numpy(trajectory_prefix["states"]).float().unsqueeze(0).to(device)
         actions = torch.from_numpy(trajectory_prefix["actions"]).float().unsqueeze(0).to(device)
         rtgs = torch.from_numpy(trajectory_prefix["rtg"]).float().unsqueeze(0).to(device)
         if rtgs.ndim == 2:
-            rtgs = rtgs.unsqueeze(-1)
+            rtgs = rtgs.unsqueeze(-1)                       
 
         T = states.shape[1]
 
@@ -50,10 +53,10 @@ class LaMADTPolicy:
             attention_mask=attn,
             output_hidden_states=True,
         )
-        hidden = out.hidden_states[-1].float()
+        hidden = out.hidden_states[-1].float()                       
 
         pos_last_s = L_text + 3 * (T - 1) + 1
-        h = hidden[:, pos_last_s, :]
-        pred_action = self.tokenizer.numeric_heads.predict_action(h)
+        h = hidden[:, pos_last_s, :]          
+        pred_action = self.tokenizer.numeric_heads.predict_action(h)          
 
         return pred_action.squeeze(0).cpu().numpy()

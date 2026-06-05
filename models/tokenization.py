@@ -1,4 +1,5 @@
 
+
 from typing import List, Optional, Tuple
 
 import torch
@@ -15,7 +16,8 @@ class TaskIDEmbedding(nn.Module):
         self.hidden_size = hidden_size
 
     def forward(self, task_ids: torch.Tensor) -> torch.Tensor:
-        emb = self.embedding(task_ids)
+        
+        emb = self.embedding(task_ids)                                 
         return emb.view(-1, self.num_tokens, self.hidden_size)
 
 class NumericEmbedding(nn.Module):
@@ -47,6 +49,7 @@ class NumericEmbedding(nn.Module):
         return self.action_mlp(a)
 
     def embed_return(self, rtg: torch.Tensor) -> torch.Tensor:
+                       
         return self.return_mlp(rtg)
 
 class NumericHeads(nn.Module):
@@ -100,6 +103,7 @@ class TrajectoryTokenizer:
         task_description: str,
         provenance_token: Optional[str] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        
         parts: List[str] = [task_description]
         if provenance_token is not None:
             parts.append(f"[source={provenance_token}]")
@@ -117,6 +121,7 @@ class TrajectoryTokenizer:
         states: torch.Tensor,
         actions: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        
         e_r = self.numeric_embedding.embed_return(rtg)
         e_s = self.numeric_embedding.embed_state(states)
         e_a = self.numeric_embedding.embed_action(actions)
@@ -132,6 +137,7 @@ class TrajectoryTokenizer:
         device: torch.device,
         text_attn_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, int]:
+        
         B, T = states.shape[0], states.shape[1]
 
         text_embeds = word_embed_fn(text_ids.to(device)).float()
@@ -173,6 +179,7 @@ class TrajectoryTokenizer:
         actions: torch.Tensor,
         device: torch.device,
     ) -> Tuple[torch.Tensor, torch.Tensor, int]:
+        
         B, T = states.shape[0], states.shape[1]
         L_prefix = task_id_embeds.shape[1]
 
