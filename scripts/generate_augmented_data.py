@@ -28,6 +28,7 @@ def load_task_descriptions(path: str) -> Dict[str, str]:
         return json.load(f)
 
 def collect_initial_pairs(offline_root: str) -> Dict[str, List[Tuple[np.ndarray, np.ndarray]]]:
+    
     pattern = os.path.join(offline_root, "**", "*.npz")
     files = sorted(glob.glob(pattern, recursive=True))
     per_task: Dict[str, List[Tuple[np.ndarray, np.ndarray]]] = defaultdict(list)
@@ -47,17 +48,20 @@ def collect_initial_pairs(offline_root: str) -> Dict[str, List[Tuple[np.ndarray,
     return per_task
 
 def collect_trajectory_paths(offline_root: str) -> Dict[str, List[str]]:
+    
     pattern = os.path.join(offline_root, "**", "*.npz")
     files = sorted(glob.glob(pattern, recursive=True))
     per_task: Dict[str, List[str]] = defaultdict(list)
 
     for fpath in files:
+                                                                               
         task_name = os.path.basename(os.path.dirname(fpath))
         per_task[task_name].append(fpath)
 
     return per_task
 
 def load_trajectory(fpath: str) -> Dict[str, np.ndarray]:
+    
     data = np.load(fpath, allow_pickle=True)
     return {
         "states": data["observations"].astype(np.float32),
@@ -179,6 +183,7 @@ def main(args):
         temperature=gen_cfg["temperature"],
         top_p=gen_cfg["top_p"],
     )
+                                                                                        
     generator.action_clip = gen_cfg.get("action_clip", None)
     scorer = TrajectoryScorer(
         llm=llm,
@@ -211,6 +216,7 @@ def main(args):
 
         task_target_return = gen_cfg.get("target_return", None)
         if task_target_return is None:
+                                                         
             sample_idx = np.random.choice(len(items), size=min(50, len(items)), replace=False)
             sample_returns = []
             for si in sample_idx:

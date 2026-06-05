@@ -1,4 +1,5 @@
 
+
 import argparse
 import json
 import math
@@ -27,12 +28,19 @@ from utils.logging_utils import get_logger
 from utils.seed_utils import set_seed
 
 def collate_windows(batch, window_size=20, norm_stats=None, rtg_scale=None):
+    
     states_list, actions_list, rtg_list = [], [], []
     task_names, provenances = [], []
 
     for item in batch:
         T = item["states"].shape[0]
-        W = min(window_size, T)
+        if T < window_size:
+            pad = window_size - T
+            item["states"] = np.concatenate([item["states"], np.tile(item["states"][-1:], (pad, 1))], axis=0)
+            item["actions"] = np.concatenate([item["actions"], np.zeros((pad, item["actions"].shape[-1]))], axis=0)
+            item["rtg"] = np.concatenate([item["rtg"], np.zeros((pad, 1))], axis=0)
+            T = window_size
+        W = window_size
         start = np.random.randint(0, max(T - W, 0) + 1)
 
         states_list.append(torch.from_numpy(item["states"][start:start + W]).float())
@@ -51,7 +59,7 @@ def collate_windows(batch, window_size=20, norm_stats=None, rtg_scale=None):
 
     if norm_stats is not None:
         obs_std = norm_stats["obs_std"].clone()
-        obs_std[obs_std < 1e-6] = 1.0
+        obs_std[obs_std < 1e-6] = 1.0                                            
         result["states"] = (result["states"] - norm_stats["obs_mean"]) / obs_std
         rtg_std = norm_stats["rtg_std"] if abs(norm_stats["rtg_std"]) > 1e-6 else 1.0
         result["rtg"] = (result["rtg"] - norm_stats["rtg_mean"]) / rtg_std
@@ -86,7 +94,7 @@ def main(args):
 
     is_main = (rank == 0)
 
-    output_dir = cfg.get("logging", {}).get("output_dir", "output")
+    output_dir = cfg.get("logging", {}).get("output_dir", "experiments/lamadt_policy")
     if is_main:
         os.makedirs(output_dir, exist_ok=True)
     log_file = os.path.join(output_dir, "train.log") if is_main else None
@@ -237,7 +245,7 @@ def main(args):
 
     log_every = cfg["logging"]["log_every"]
     save_every = cfg["logging"].get("save_every", 5000)
-    output_dir = cfg["logging"].get("output_dir", "output")
+    output_dir = cfg["logging"].get("output_dir", "experiments/lamadt_policy")
     ckpt_dir = os.path.join(output_dir, "checkpoints")
     if is_main:
         os.makedirs(ckpt_dir, exist_ok=True)
@@ -311,6 +319,7 @@ def main(args):
             step += 1
 
             if step % grad_accum_steps == 0:
+                                                 
                 if ddp:
                     for p in trainable_params:
                         if p.grad is not None:

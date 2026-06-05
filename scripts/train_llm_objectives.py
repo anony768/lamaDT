@@ -1,4 +1,5 @@
 
+
 import argparse
 import json
 import math
@@ -36,6 +37,7 @@ def _collate_fn(batch: List[Dict]) -> Dict:
     for key in batch[0]:
         vals = [item[key] for item in batch]
         if key in ("obs_full", "act_full", "rew_full"):
+                                                                    
             result[key] = [torch.as_tensor(v, dtype=torch.float32) for v in vals]
         elif key == "task_name":
             result[key] = vals
@@ -53,12 +55,14 @@ _OBJ_PROMPT = {
 }
 
 def lr_lambda(step, warmup_steps, total_steps):
+    
     if step < warmup_steps:
         return float(step) / max(warmup_steps, 1)
     progress = float(step - warmup_steps) / max(total_steps - warmup_steps, 1)
     return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
 
 def _save_checkpoints(ckpt_dir, shared_adapter, obj_adapters, objectives, tokenizer):
+    
     torch.save(shared_adapter.state_dict(), os.path.join(ckpt_dir, "lora_shared.pt"))
     for obj_name in objectives:
         adapter = obj_adapters.objective_adapters[obj_name]
@@ -89,7 +93,7 @@ def main(args):
         torch.cuda.set_device(device)
 
     is_main = (rank == 0)
-    out_dir = cfg.get("logging", {}).get("output_dir", "output")
+    out_dir = cfg.get("logging", {}).get("output_dir", "experiments/llm_objectives")
     if is_main:
         os.makedirs(out_dir, exist_ok=True)
     log_file = os.path.join(out_dir, "train.log") if is_main else None
@@ -100,7 +104,7 @@ def main(args):
                      cfg.get("experiment_name", "unknown"), ddp, world_size)
 
     seed = cfg.get("logging", {}).get("seed", 42)
-    set_seed(seed + rank)
+    set_seed(seed + rank)                                              
 
     offline_root = cfg["data"]["offline_root"]
     dataset = LLMObjectivesDataset(offline_root=offline_root)
@@ -131,7 +135,7 @@ def main(args):
     max_grad_norm = cfg["training"]["max_grad_norm"]
 
     use_amp = cfg.get("training", {}).get("use_amp", True)
-    amp_dtype = torch.bfloat16
+    amp_dtype = torch.bfloat16                                                  
 
     model_name = cfg["model"]["name"]
     model_dtype = torch.bfloat16 if use_amp else torch.float16
@@ -206,12 +210,12 @@ def main(args):
             eff_batch, warmup_steps,
         )
 
-    out_dir = cfg.get("logging", {}).get("output_dir", "output")
+    out_dir = cfg.get("logging", {}).get("output_dir", "experiments/llm_objectives")
     ckpt_dir = os.path.join(out_dir, "checkpoints")
     if is_main:
         os.makedirs(ckpt_dir, exist_ok=True)
     if ddp:
-        dist.barrier()
+        dist.barrier()                                       
 
     save_every = int(cfg.get("logging", {}).get("save_every", 0) or 0)
     log_every = cfg["logging"]["log_every"]
@@ -228,6 +232,7 @@ def main(args):
         epoch += 1
 
         for batch in dataloader:
+                                                                        
             if ddp:
                 obj_idx = torch.tensor([random.randint(0, len(objectives) - 1)], device=device)
                 dist.broadcast(obj_idx, src=0)
@@ -264,6 +269,7 @@ def main(args):
             step += 1
 
             if step % grad_accum_steps == 0:
+                                                 
                 if ddp:
                     for p in trainable_params:
                         if p.grad is not None:
