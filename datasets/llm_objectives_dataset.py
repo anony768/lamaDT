@@ -45,11 +45,13 @@ class LLMObjectivesDataset:
 
         return {
             "task_name": traj["task"],
+                                        
             "obs_t": traj["observations"][t],
             "act_t": traj["actions"][t],
             "rew_t": traj["rewards"][t],
             "obs_tp1": traj["next_observations"][t],
             "done_t": traj["terminals"][t],
+                                                             
             "obs_full": traj["observations"],
             "act_full": traj["actions"],
             "rew_full": traj["rewards"],
