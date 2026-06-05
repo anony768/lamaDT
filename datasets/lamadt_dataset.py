@@ -1,4 +1,5 @@
 
+
 import glob
 import os
 import pickle
@@ -15,10 +16,10 @@ class LaMADTDataset:
         self.augmented_root = augmented_root
         self.max_trajectory_length = max_trajectory_length
 
-        self._index: List[Tuple[str, int, int]] = []
+        self._index: List[Tuple[str, int, int]] = []                                
         self._offline_files: List[str] = []
         self._augmented_files: List[str] = []
-        self._augmented_data: Dict[int, List] = {}
+        self._augmented_data: Dict[int, List] = {}                       
         self._offline_cache: OrderedDict = OrderedDict()
         self._cache_size = cache_size
 
@@ -43,13 +44,14 @@ class LaMADTDataset:
 
     @staticmethod
     def _compute_rtg(rewards: np.ndarray) -> np.ndarray:
+        
         r = rewards.reshape(-1)
         rtg = np.zeros_like(r)
         running = 0.0
         for t in reversed(range(len(r))):
             running += r[t]
             rtg[t] = running
-        return rtg[:, None]
+        return rtg[:, None]          
 
     def _load_offline(self, file_idx: int) -> Dict:
         if file_idx in self._offline_cache:
